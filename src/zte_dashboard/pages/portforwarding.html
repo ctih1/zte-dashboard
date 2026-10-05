@@ -163,7 +163,7 @@
                 if(mode === 'pf') {
                     var res = await fetch(
                     `/api/portforwarding`,{
-                        method: 'PUT', 
+                        method: 'POST', 
                         body: JSON.stringify({
                             'ip_addr': ipAddr,
                             'comment': comment,
@@ -178,7 +178,7 @@
                 } else if(mode === 'pm') {
                     var res = await fetch(
                     `/api/portmapping`,{
-                        method: 'PUT', 
+                        method: 'POST', 
                         body: JSON.stringify({
                             'ip_addr': ipAddr,
                             'comment': comment,

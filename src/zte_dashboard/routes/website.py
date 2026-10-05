@@ -28,6 +28,7 @@ class Website:
 
         self.router = APIRouter()
         self.router.add_api_route("/", make_api_route("index.html"))
+        self.router.add_api_route("/sms", make_api_route("sms.html"))
         self.router.add_api_route(
             "/portforwarding", make_api_route("portforwarding.html")
         )

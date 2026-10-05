@@ -1,6 +1,13 @@
-from fastapi import APIRouter, Request, Header, Depends, Response
+from fastapi import APIRouter, Request, Header, Depends, Response, HTTPException
 from zte_wrapper.wrapper import ZTEWrapper
-from zte_wrapper.types import PortRange, PortforwardingRule, RuleType, PortmappingRule
+from zte_wrapper.types import (
+    PortRange,
+    PortforwardingRule,
+    RuleType,
+    PortmappingRule,
+    SMSMessage,
+    PhoneNumber,
+)
 import json
 import dataclasses
 from typing import Any
@@ -40,6 +47,11 @@ class PortmapRule(BaseModel):
     protocol: RuleType
 
 
+class Message(BaseModel):
+    phone_number: str
+    message: str
+
+
 class API:
     def __init__(self, zte_wrapper: ZTEWrapper) -> None:
         pass
@@ -53,7 +65,7 @@ class API:
         self.router.add_api_route(
             "/api/portforwarding",
             self.add_portforwarding_rule,
-            methods=["PUT"],
+            methods=["POST"],
         )
         self.router.add_api_route(
             "/api/portforwarding",
@@ -65,13 +77,39 @@ class API:
         self.router.add_api_route(
             "/api/portmapping",
             self.add_portmapping_rule,
-            methods=["PUT"],
+            methods=["POST"],
         )
         self.router.add_api_route(
             "/api/portmapping",
             self.remove_portmapping_rule,
             methods=["DELETE"],
         )
+
+        self.router.add_api_route(
+            "/api/sms",
+            self.query_sms,
+            methods=["GET"],
+        )
+
+        self.router.add_api_route(
+            "/api/sms",
+            self.send_sms,
+            methods=["POST"],
+        )
+
+    async def query_sms(self) -> dict[PhoneNumber, list[SMSMessage]]:
+        messages = await self.zte.sms.get_sms()
+        if not messages:
+            raise HTTPException(status_code=500, detail="Could not retrieve messages")
+
+        return messages
+
+    async def send_sms(self, message: Message, hour_offset: int = 0) -> None:
+        success = await self.zte.sms.send_sms(
+            message.phone_number, message.message, hour_offset
+        )
+        if not success:
+            raise HTTPException(status_code=500, detail="Could not send messages")
 
     async def signal_strength(self) -> Response:
         data = await self.zte.signal.get_signal_strength()

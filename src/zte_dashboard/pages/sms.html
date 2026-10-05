@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <link href="/frii.css" rel="stylesheet" />
+    <title>Home</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+
+<body>
+    <div class="card">
+        <h1>SMS</h1>
+
+        <div x-data="{
+            messages: null,
+            loaded: false,
+            newChatPhoneNo: null,
+            currentMessage: '',
+            active: {
+                chats: [],
+                phoneNumber: null
+            },
+            async getMessages() {
+                this.loaded = false;
+                this.messages = await (await fetch('/api/sms')).json();
+            }
+        }" x-init="getMessages()">
+            <div style="display: flex; height: 600px">
+                <div style="display: flex; flex-direction: column;">
+                    <button @click="active.phoneNumber = undefined; active.chats = [];" style="padding: 12px; width: 120px;">
+                        New message
+                    </button>
+                    <template x-for="phoneNo in Object.entries(messages)">
+                        <button @click="active.phoneNumber = phoneNo[0]; active.chats = phoneNo[1];" style="padding: 12px; width: 120px;">
+                            <span x-text="phoneNo[0]"></span>
+                        </button>
+                    </template>
+                </div>
+
+                <div style="position: relative; border-radius: 0.5em; padding: 0.5em; margin: 0.5em; background-color: var(--button-default); height: 100%; width: 100%;">
+                    <span x-show="active.phoneNumber" style="font-weight: 700; font-size: 1.25em; margin-bottom: 12px;" x-text="active.phoneNumber"></span>
+                    <div x-show="!active.phoneNumber" style="display: flex; flex-direction: column;">
+                        <label id="phonenumber">Enter a phone number</label>
+                        <input x-model="newChatPhoneNo" id="phonenumber" placeholder="+358401234567">
+                    </div>
+
+
+                    <div style="margin-top: 38px">
+                        <template x-for="message in [...active.chats].reverse()">
+                            <div style="display: flex; flex-direction: column; width: fit-content; margin-bottom: 8px;"
+                                :class="message.mode === 'SENT_BY_SELF' ? 'msg-self' : 'msg-other'"
+                            >
+                                <span class="bubble" style="border-radius: 0.5em; padding: 0.5em; max-width: 400px;" x-text="message.content"></span>
+                                <span style="color: black; opacity: 0.7; font-weight: 300; font-size: 0.8em;" x-text="new Date(message.date).toLocaleString();"></span>
+                            </div>
+                        </template>
+                    </div>
+                    
+                    <div style="position: absolute; bottom: 0px; width: 100%; left: 0px;">
+                        <div style="margin: 12px; display: flex; align-items: center;">
+                            <input x-model="currentMessage" style="width: 100%; height: 40px">
+                            <button @click="
+                            const res = await fetch('/api/sms', {
+                                method: 'POST',
+                                body: JSON.stringify({
+                                    phone_number: !active.phoneNumber ? newChatPhoneNo : active.phoneNumber,
+                                    message:  currentMessage
+                                }),
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                }
+                            });
+
+                            if(res.ok) {
+                                let messageObj = {content: currentMessage, date: new Date(), id: undefined, mode: 'SENT_BY_SELF', sms_class: 4, tag: 2};
+                                if(!active.phoneNumber && newChatPhoneNo) {
+                                    messages[newChatPhoneNo] = [messageObj];
+                                    active.chats = [messageObj];
+                                    active.phoneNumber = newChatPhoneNo;
+                                } else {
+                                    messages[active.phoneNumber].unshift(messageObj);
+                                }
+
+                                newChatPhoneNo = '';
+                                currentMessage = '';
+                            }
+                            " :disabled="(!active.phoneNumber && !newChatPhoneNo) || !currentMessage" style="height: 40px;" class="primary">Send</button>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+        </div>
+    </div>
+</body>
+
+<style>
+    .msg-self {
+        justify-content: end;
+        margin-left: auto;
+        margin-right: 0px;
+    }
+
+    .msg-self .bubble {
+        background-color: #007AFF; 
+        color: white;
+    }
+
+    .msg-other .bubble {
+        background-color: #E9E9EB; 
+        color: black;
+    }
+
+</style>
