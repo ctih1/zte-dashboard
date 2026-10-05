@@ -1,0 +1,17 @@
+[project]
+name = "zte-dashboard"
+version = "1.0.0"
+authors = [
+  { name="ctih1", email="contact@ctih1.fi" },
+]
+description = "An alternate dashboard with multiple account, and statistics support"
+readme = "README.md"
+requires-python = ">=3.9"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+Homepage = "https://github.com/ctih1/zte-dashboard"
+Issues = "https://github.com/ctih1/zte-dashboard/issues"

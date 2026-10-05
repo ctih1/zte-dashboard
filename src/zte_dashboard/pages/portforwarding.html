@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <link href="/frii.css" rel="stylesheet" />
+    <title>Home</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+
+<div x-data="{mode: 'pf'}" class="card">
+    <h1>Portforwarding/Portmapping</h1>
+
+    <select x-model="mode">
+        <button><selectedcontent></selectedcontent></button>
+        <option value="pf">Portforwarding</option>
+        <option value="pm">Portmapping</option>
+    </select>
+
+    </select>
+    <p>Manage <span x-text="mode === 'pf' ? 'portforwarding' : 'portmapping'"></span> settings</p>
+
+    <br>
+
+    <h2>Rules</h2>
+    <div x-data="{
+        result: null,
+        loaded: false,
+        limitReached: false,
+        checkboxes: new Array(20).fill(false),
+        creation: {
+            loading: false,
+            success: true,
+            dismissed: true,
+            malformedComment: false
+        },
+        deletion: {
+            loading: false,
+            success: true,
+            dismissed: true
+        },
+        async getRules() {
+            this.loaded = false;
+            this.checkboxes = new Array(20).fill(false);
+            const path = (mode === 'pf' ? 'portforwarding' : 'portmapping');
+            
+            this.result = await (await fetch(`/api/${path}`)).json();
+            this.loaded = true;
+            this.limitReached = this.result.rules.length >= 20;
+        }
+    }" x-init="getRules()" x-effect="mode; getRules();">
+        <div x-show="!loaded" class="spinner"></div>
+        <div x-show="loaded" x-cloak>
+            <p><span x-text="mode === 'pf' ? 'Portforwarding' : 'Portmapping'"></span> enabled: <span x-text="result.enabled ? 'yes' : 'no'"></span></p>
+            <p>Rules: <b :class="limitReached ? 'danger' : ''" x-text="result.rules.length+'/20'"></b></p>
+            <table>
+                <thead>
+                    <tr>
+                        <td style="padding: 0px">Sel.</td>
+                        <td><span x-text="mode === 'pf' ? 'Port range' : 'Internal port, External port'"></span></td>
+                        <td>IP Address</td>
+                        <td>Protocol</td>
+                        <td>Comment</td>
+                    </tr>
+                </thead>
+                <tbody>
+                    <template x-for="(rule, i) in result.rules" :key="i">
+                        <tr>
+                            <td style="padding: 0px">
+                                <input x-model="checkboxes[i]" type="checkbox">
+                            </td>
+                            <template x-if="mode==='pf'">
+                                <td>
+                                    <span x-text="rule.ports[0]"></span>
+                                    <span x-show="rule.ports[0] !== rule.ports[1]">
+                                        <span>-</span>
+                                        <span x-text="rule.ports[1]"></span>
+                                    </span>
+                                </td>
+                            </template>
+                            <template x-if="mode==='pm'">
+                                <td style="display: flex; align-items: center">
+                                    <span style="width: 100%" x-text="rule.port_internal+','"></span>
+                                    <span style="width: 100%" x-text="rule.port_external"></span>
+                                </td>
+                            </template>
+                            <td>
+                                <span x-text="rule.ip_addr"></span>
+                            </td>
+                            <td>
+                                <span x-text="rule.protocol"></span>
+                            </td>
+                            <td>
+                                <span x-text="rule.comment"></span>
+                            </td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+
+            <button @click="
+            deletion.loading = true;
+            deletion.dismissed = false;
+
+
+            const deletedIndices = checkboxes.map((checked,i) => [i, checked]).filter(item => item[1]).map(item => item[0]);
+            const path = (mode === 'pf' ? 'portforwarding' : 'portmapping');
+            const res = await fetch(
+                `/api/${path}`,{
+                    method: 'DELETE', 
+                    body: JSON.stringify(deletedIndices),
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+            deletion.loading = false;
+            deletion.success = res.ok;
+
+            if(res.ok) {
+                checkboxes = new Array(20).fill(false);
+                result.rules = result.rules.filter((_, i) => !deletedIndices.includes(i));
+            }
+                "  class="destructive">Delete selected</button>
+    
+
+            <div x-data="{ipAddr: '', portStart: 0, portEnd: 0, protocol: 'TCP&UDP', comment: ''}">
+                <h2>Create new rule</h2>
+
+                <div :class="limitReached ? 'disabled' : ''">
+                    <table>
+                        <thead>
+                            <tr>
+                                <td x-text="mode === 'pf' ? 'Port start' : 'Internal port'"></td>
+                                <td x-text="mode === 'pf' ? 'Port end' : 'External port'"></td>
+                                <td>IP Address</td>
+                                <td>Protocol</td>
+                                <td>Comment</td>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr class="new-table">
+                                <td><input type="number" x-model="portStart"></td>
+                                <td><input type="number" x-model="portEnd"></td>
+                                <td><input x-model="ipAddr"></td>
+                                <td><select x-model="protocol">
+                                    <button><selectedcontent></selectedcontent></button>
+                                    <option>TCP&amp;UDP</option>
+                                    <option>TCP</option>
+                                    <option>UDP</option>
+                                </select></td>
+                                <td><input x-effect="creation.malformedComment = !(/^[a-zA-Z0-9_.-]*$/.test(comment))" pattern="/[a-zA-Z0-9_-]/" x-model="comment" style="max-width: 300px"></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <p class="danger" x-show="creation.malformedComment">Comment may only include a-z, 0-9, and _-</p>
+
+                <button @click="
+                creation.loading = true;
+                creation.dismissed = false;
+                
+                if(mode === 'pf') {
+                    var res = await fetch(
+                    `/api/portforwarding`,{
+                        method: 'PUT', 
+                        body: JSON.stringify({
+                            'ip_addr': ipAddr,
+                            'comment': comment,
+                            'port_start': portStart,
+                            'port_end': portEnd,
+                            'protocol': protocol
+                        }),
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                } else if(mode === 'pm') {
+                    var res = await fetch(
+                    `/api/portmapping`,{
+                        method: 'PUT', 
+                        body: JSON.stringify({
+                            'ip_addr': ipAddr,
+                            'comment': comment,
+                            'port_internal': portStart,
+                            'port_external': portEnd,
+                            'protocol': protocol
+                        }),
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                }
+
+                creation.loading = false;
+                creation.success = res.ok;
+
+                if(res.ok) {
+                    if(mode === 'pf') {
+                        result.rules.push({
+                            comment: comment,
+                            ip_addr: ipAddr,
+                            ports: [portStart, portEnd],
+                            protocol: protocol
+                        });
+                    } else if(mode === 'pm') {
+                        result.rules.push({
+                            comment: comment,
+                            ip_addr: ipAddr,
+                            port_internal: portStart,
+                            port_external: portEnd,
+                            protocol: protocol
+                        });
+                    }
+
+                    result.rules = [...result.rules];
+                }
+                " :disabled="limitReached || creation.malformedComment" class="primary">Create</button>
+
+                <div x-show="limitReached">
+                    <h1>Rule limit reached!</h2>
+                    <p>The lovely engineers are ZTE decided that only 20 rules would be supported.</p>
+                    <p>Try to use the &quot;merge&quot; tool</p>
+                </div>
+            </div>
+        </div>
+
+        <div x-cloak style="position: fixed; background: white; filter: drop-shadow(12px -12px 24px #00000066); padding: 12px; padding-top: 0px; padding-bottom: 0px; border-bottom-left-radius: 12px; top: 0px; right: 0px">
+            <p class="danger" x-show="deletion.success === false && !deletion.dismissed && !deletion.loading">Failed to delete rule! Try again later, dev tools might help.</p>
+            <p class="danger" x-show="creation.success === false && !creation.dismissed && !creation.loading">Failed to create rule! Try again later, dev tools might help.</p>
+
+            <p x-show="creation.loading">Creating rule...</p>
+            <p x-show="deletion.loading">Deleting rule...</p>
+
+            <p x-show="creation.success && !creation.loading && !creation.dismissed">Successfully created rule!</p>
+            <p x-show="deletion.success && !deletion.loading && !deletion.dismissed">Successfully deleted rule!</p>
+
+            <button x-show="!creation.dismissed || !deletion.dismissed" @click="creation.dismissed = true; deletion.dismissed = true;">Dismiss all</button>
+        </div>
+    </div>
+</div>
+
+
+<style>
+    th, td {
+        padding: 8px
+    }
+
+    .danger {
+        color: red
+    }
+
+    .new-table td {
+        padding: 2px;
+    }
+
+    .new-table td input {
+        max-width: 100px;
+    }
+
+    select button::after {
+        content: "▲"
+    }
+
+    .disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .disabled table {
+        pointer-events: none;
+    }
+</style>
+</html>
