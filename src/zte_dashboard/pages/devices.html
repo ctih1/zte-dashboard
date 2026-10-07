@@ -3,6 +3,7 @@
 <head>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <link href="/frii.css" rel="stylesheet" />
+    <script src="/utils.js"></script>
     <title>Home</title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -78,9 +79,18 @@
 
                             <div style="margin-top: 12px" class="options">
                                 <button @click="
+                                const id = showNotification('Creating binding...', 'loading');
                                 const res = await fetch('/api/devices/bindings?' + new URLSearchParams({ip_addr: creating.ip, mac_addr: creating.mac}), {
                                     method: 'POST'
                                 });
+                                if(res.ok) {
+                                    bindings[creating.mac] = creating.ip;
+                                    lan = [...lan];
+                                    showNotification('Created bind successfully!');
+                                } else {
+                                    showNotification('Failed to create bind.', 'error');
+                                }
+                                removeNotification(id);
                                 " class="secondary" x-bind:commandfor="`bind-modal-${device.mac_address}`">Create binding</button>
                                 <button class="primary" x-bind:commandfor="`bind-modal-${device.mac_address}`" command="close">Cancel</button>
                             </div>

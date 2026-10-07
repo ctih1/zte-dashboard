@@ -3,6 +3,7 @@
 <head>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <link href="/frii.css" rel="stylesheet" />
+    <script src="/utils.js"></script>
     <title>Home</title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -102,6 +103,8 @@
             deletion.loading = true;
             deletion.dismissed = false;
 
+            const id = showNotification('Deleting rule(s)...', 'loading');
+
 
             const deletedIndices = checkboxes.map((checked,i) => [i, checked]).filter(item => item[1]).map(item => item[0]);
             const path = (mode === 'pf' ? 'portforwarding' : 'portmapping');
@@ -115,10 +118,14 @@
                 });
             deletion.loading = false;
             deletion.success = res.ok;
+            removeNotification(id);
 
             if(res.ok) {
+                showNotification('Deleted rule successfully!');
                 checkboxes = new Array(20).fill(false);
                 result.rules = result.rules.filter((_, i) => !deletedIndices.includes(i));
+            } else {
+                showNotification('Failed to delete rule.', 'error');
             }
                 "  class="destructive">Delete selected</button>
     
@@ -127,7 +134,7 @@
                 <h2>Create new rule</h2>
 
                 <div :class="limitReached ? 'disabled' : ''">
-                    <table>
+                    <table style="max-width: 100%;">
                         <thead>
                             <tr>
                                 <td x-text="mode === 'pf' ? 'Port start' : 'Internal port'"></td>
@@ -139,8 +146,8 @@
                         </thead>
                         <tbody>
                             <tr class="new-table">
-                                <td><input type="number" x-model="portStart"></td>
-                                <td><input type="number" x-model="portEnd"></td>
+                                <td><input style="width: 64px" type="number" x-model="portStart"></td>
+                                <td><input style="width: 64px" type="number" x-model="portEnd"></td>
                                 <td><input x-model="ipAddr"></td>
                                 <td><select x-model="protocol">
                                     <button><selectedcontent></selectedcontent></button>
@@ -159,6 +166,8 @@
                 <button @click="
                 creation.loading = true;
                 creation.dismissed = false;
+
+                const id = showNotification('Creating rule...', 'loading');
                 
                 if(mode === 'pf') {
                     var res = await fetch(
@@ -194,8 +203,10 @@
 
                 creation.loading = false;
                 creation.success = res.ok;
+                removeNotification(id);
 
                 if(res.ok) {
+                    showNotification('Rule created!');
                     if(mode === 'pf') {
                         result.rules.push({
                             comment: comment,
@@ -211,6 +222,8 @@
                             port_external: portEnd,
                             protocol: protocol
                         });
+                    } else {
+                        showNotification('Failed to create rule.', 'error');
                     }
 
                     result.rules = [...result.rules];
@@ -223,19 +236,6 @@
                     <p>Try to use the &quot;merge&quot; tool</p>
                 </div>
             </div>
-        </div>
-
-        <div x-cloak style="position: fixed; background: white; filter: drop-shadow(12px -12px 24px #00000066); padding: 12px; padding-top: 0px; padding-bottom: 0px; border-bottom-left-radius: 12px; top: 0px; right: 0px">
-            <p class="danger" x-show="deletion.success === false && !deletion.dismissed && !deletion.loading">Failed to delete rule! Try again later, dev tools might help.</p>
-            <p class="danger" x-show="creation.success === false && !creation.dismissed && !creation.loading">Failed to create rule! Try again later, dev tools might help.</p>
-
-            <p x-show="creation.loading">Creating rule...</p>
-            <p x-show="deletion.loading">Deleting rule...</p>
-
-            <p x-show="creation.success && !creation.loading && !creation.dismissed">Successfully created rule!</p>
-            <p x-show="deletion.success && !deletion.loading && !deletion.dismissed">Successfully deleted rule!</p>
-
-            <button x-show="!creation.dismissed || !deletion.dismissed" @click="creation.dismissed = true; deletion.dismissed = true;">Dismiss all</button>
         </div>
     </div>
 </div>

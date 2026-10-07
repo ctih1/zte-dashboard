@@ -1,3 +1,23 @@
+const dismissNotifButton = document.createElement("button");
+dismissNotifButton.innerHTML = "Clear all"
+dismissNotifButton.style.width = "100%";
+dismissNotifButton.onclick = _ => clearNotificationBox();
+
+window.onload = ()  => {
+    const navbar = document.createElement("nav");
+    navbar.innerHTML = `
+    <nav>
+        <ul>
+            <li><a href="/">Home</a></li>
+            <li><a href="/sms">SMS</a></li>
+            <li><a href="/devices">Devices</a></li>
+            <li><a href="/portforwarding">Port forwarding / mapping</a></li>
+        </ul>
+    </nav>
+    `
+    document.body.prepend(navbar)
+};
+
 // https://stackoverflow.com/questions/1349404/generate-a-string-of-random-characters
 function randomString(length) {
     var result           = '';
@@ -13,8 +33,8 @@ function initNotifBox() {
     const node = document.createElement("div");
     window.document.body.appendChild(node);
     node.id = "notif-box"
-    node.style = "position: fixed; background: white; filter: drop-shadow(12px -12px 24px #00000066); padding: 12px; padding-top: 0px; padding-bottom: 0px; border-bottom-left-radius: 12px; top: 0px; right: 0px"
-
+    node.style = "position: fixed; background: white; filter: drop-shadow(12px -12px 24px #00000066); padding: 12px; padding-top: 0px; padding-bottom: 0px; border-bottom-left-radius: 12px; top: 0px; right: 0px; z-index: 69"
+    node.appendChild(dismissNotifButton);
     return node;
 }
 
@@ -28,8 +48,19 @@ function getNotificationBox() {
     return target;
 }
 
-function showNotification(text, type = "error") {
+function handleButtonVisibility() {
+    const elements = document.getElementsByClassName("notification-element");
+
+    if(elements.length !== 0) {
+        dismissNotifButton.style.display="block";
+    } else {
+        dismissNotifButton.style.display="none";
+    }
+}
+
+function showNotification(text, type = "info") {
     const logElement = document.createElement("p");
+    logElement.classList.add('notification-element')
     const notifId = randomString(8);
 
     if(type === "loading") {
@@ -43,8 +74,11 @@ function showNotification(text, type = "error") {
         }
     }
 
+
     logElement.id = `notification-${notifId}`;
-    getNotificationBox().appendChild(logElement);
+    getNotificationBox().prepend(logElement);
+
+    handleButtonVisibility();
 
     return notifId;
 }
@@ -56,8 +90,15 @@ function removeNotification(id) {
     } catch(err) {
         console.warn("Failed to delete notification")
     }
+
+    handleButtonVisibility();
 }
 
 function clearNotificationBox() {
-    getNotificationBox().innerHTML = "";
+    const elements = document.getElementsByClassName("notification-element");
+    for(let element of elements) {
+        element.remove();
+    }
+
+    handleButtonVisibility();
 }
