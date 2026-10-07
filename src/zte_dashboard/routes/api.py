@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Request, Header, Depends, Response, HTTPException
+from fastapi.responses import JSONResponse
 from zte_wrapper.wrapper import ZTEWrapper
 from zte_wrapper.types import (
     PortRange,
@@ -12,6 +13,7 @@ import json
 import dataclasses
 from typing import Any
 from pydantic import BaseModel
+from utils import check_cooldown
 
 
 class JSONEncoderWithPortRange(json.JSONEncoder):
@@ -57,6 +59,7 @@ class API:
         pass
 
         self.zte = zte_wrapper
+        self.on_cooldown = False
         self.router = APIRouter()
         self.router.add_api_route("/metrics", self.signal_strength)
         self.router.add_api_route(
@@ -96,6 +99,34 @@ class API:
             self.send_sms,
             methods=["POST"],
         )
+
+        self.router.add_api_route(
+            "/api/cooldown",
+            self.stop_cooldown,
+            methods=["GET"],
+        )
+
+        self.router.add_api_route(
+            "/api/cooldown",
+            self.start_cooldown,
+            methods=["POST"],
+        )
+
+        self.router.add_api_route(
+            "/api/cooldown",
+            self.stop_cooldown,
+            methods=["DELETE"],
+        )
+
+    @check_cooldown
+    async def start_cooldown(self, request: Request) -> None:
+        self.on_cooldown = True
+
+    async def stop_cooldown(self) -> None:
+        self.on_cooldown = False
+
+    async def get_cooldown(self) -> JSONResponse:
+        return JSONResponse({"cooldown": self.on_cooldown}, 200)
 
     async def query_sms(self) -> dict[PhoneNumber, list[SMSMessage]]:
         messages = await self.zte.sms.get_sms()
