@@ -2,20 +2,52 @@ const dismissNotifButton = document.createElement("button");
 dismissNotifButton.innerHTML = "Clear all"
 dismissNotifButton.style.width = "100%";
 dismissNotifButton.onclick = _ => clearNotificationBox();
+let onCooldown = false;
 
-window.onload = ()  => {
+async function toggleCooldown(lockEnabled) {
+    const id = showNotification("Locking API...", "loading");
+    const res = await fetch("/api/cooldown", {
+        method: lockEnabled ? "DELETE" : "POST"
+    });
+    removeNotification(id);
+    const targetText = lockEnabled ? "unlock" : "lock"; 
+    if(res.ok) {
+        showNotification(`Successfully ${targetText}ed API!`);
+    } else {
+        showNotification(`Failed to ${targetText} API.`, "error");
+    }
+}
+
+window.onload = async ()  => {
+    let req = fetch("/api/cooldown");
+
     const navbar = document.createElement("nav");
+    navbar.style = "display: flex; justify-content: space-between; align-items: center;";
     navbar.innerHTML = `
-    <nav>
         <ul>
             <li><a href="/">Home</a></li>
             <li><a href="/sms">SMS</a></li>
             <li><a href="/devices">Devices</a></li>
             <li><a href="/portforwarding">Port forwarding / mapping</a></li>
         </ul>
-    </nav>
     `
-    document.body.prepend(navbar)
+    document.body.prepend(navbar);
+
+    const data = await (await req).json();
+    console.log(data);
+    const lockButton = document.createElement("button");
+    if(data["cooldown"]) {
+        lockButton.innerText = "Disable cooldown";
+        lockButton.classList.add("destructive");
+    } else {
+        lockButton.innerText = "Enable cooldown";
+        lockButton.classList.add("primary");
+    }
+
+    lockButton.onclick = async () => {
+        toggleCooldown(data["cooldown"]);
+    }
+    navbar.appendChild(lockButton);
 };
 
 // https://stackoverflow.com/questions/1349404/generate-a-string-of-random-characters
