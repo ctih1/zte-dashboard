@@ -29,6 +29,7 @@ window.onload = async ()  => {
             <li><a href="/sms">SMS</a></li>
             <li><a href="/devices">Devices</a></li>
             <li><a href="/portforwarding">Port forwarding / mapping</a></li>
+            <li><a href="/ntools">Network tools</a></li>
         </ul>
     `
     document.body.prepend(navbar);

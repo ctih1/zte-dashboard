@@ -7,6 +7,44 @@
     <title>Home</title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <script>
+        // Adapted from https://stackoverflow.com/questions/6312993/javascript-seconds-to-time-string-with-format-hhmmss
+
+        String.prototype.toFormattedString = function () {
+            var sec_num = parseInt(this, 10); // don't forget the second param
+            let offset = 0;
+
+            let days = Math.floor(sec_num / 86400);
+            offset += days*86400;
+            var hours   = Math.floor((sec_num - offset) / 3600);
+            offset += hours*3600;
+            var minutes = Math.floor((sec_num - offset) / 60);
+            offset += minutes*60;
+            var seconds = sec_num - offset;
+
+            let parts = 0;
+            let string = "";
+            if(days > 0) {
+                string += days + " days,";
+                parts++;
+            }
+            if(hours > 0) {
+                string += hours + " hours,"; 
+                parts++;
+            }
+
+            if(parts >= 2) return string.slice(string, string.length-1);
+
+            if(minutes > 0) {
+                string += minutes + " minutes,"
+                parts++;
+            }
+            if(parts >= 2) return string.slice(string, string.length-1);
+            string += seconds + " seconds";
+            return string;
+        }
+    </script>
 </head>
 
 <body>
@@ -49,10 +87,17 @@
 
                             <div class="device-info">
                                 <p>Negotiated speed: <span x-text="device.agreed_rate_mbps"></span> mbps</p>
-                                <p>MAC address: <code  x-text="device.mac_address" style="font-family: monospace !important;"></code></p>
+                                <p>MAC address: <code x-text="device.mac_address" style="font-family: monospace !important;"></code></p>
+                                <template x-if="device.connect_time">
+                                    <p>Connected for: <span x-text="device.connect_time.toString().toFormattedString()"></span></p>
+                                </template>
+                                <template x-if="device.offline_time">
+                                    <p>Last seen: <span x-text="new Date(device.start_time_t+new Date().toString().split('(')[0].trim().substr(-5)).toLocaleString()"></span></p>
+                                </template>
+                                
                             </div>
                         </div>
-                        <div x-data="{
+                        <div style="display: flex; flex-direction: column;" x-data="{
                             bound: bindings[device.mac_address] === device.ip_address || device.mac_bound
                         }">
                             <button x-show="!bound" @click="creating.mac = device.mac_address; creating.ip = device.ip_address" command="show-modal" x-bind:commandfor="`bind-modal-${device.mac_address}`" class="primary">Bind IP</button>
@@ -61,6 +106,9 @@
                                     method: 'DELETE'
                                 });
                                 " x-show="bound" class="destructive">Remove IP bind</button>
+                            <button @click="
+                                window.document.location.href = `/ntools?ip=${device.ip_address}`
+                                " class="secondary">Ping</button>
                         </div>
 
                         <dialog x-bind:id="`bind-modal-${device.mac_address}`">

@@ -22,4 +22,4 @@ async def cooldown_handler(request: Request, exc: Exception):
     return Response("On cooldown", 503)
 
 
-uvicorn.run(app, host="0.0.0.0")
+uvicorn.run(app, host=os.environ["HOST"], port=int(os.environ["PORT"]))

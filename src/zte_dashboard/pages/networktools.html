@@ -14,15 +14,27 @@
         traceOut: '',
         pingOut: '',
         currentTab: 'ping',
-        newline: String.fromCharCode(96),
         targetIp: '',
         pingSize: 64,
-        pingCount: 4,
+        pingCount: 1,
         traceInterval: null,
         pingInterval: null,
         status: {
             pingStarted: false,
             traceStarted: false
+        },
+        async refreshPing() {
+            this.pingOut = await (await fetch('/api/debug/ping')).text()
+        },
+        async refreshTrace() {
+            this.pingOut = await (await fetch('/api/debug/ping')).text()
+        },
+        async refreshCurrent() {
+            if(currentTab === 'ping') {
+                refreshPing();
+            } else {
+                refreshTrace();
+            }
         },
         async handleIntervals() {
             if(this.pingInterval) {
@@ -34,13 +46,25 @@
             
             if(this.currentTab === 'ping') {
                 this.pingInterval = setInterval(async () => {
-                    this.pingOut = await (await fetch('/api/debug/ping')).text()
+                    await this.refreshPing()
                 }, 2500);
             } else {
                 this.pingInterval = setInterval(async () => {
-                    this.traceOut = await (await fetch('/api/debug/trace')).text()
+                    await this.refreshTrace()
                 }, 2500);
             }
+        },
+        async init() {
+            const urlParams = new URLSearchParams(window.location.search);
+            this.targetIp = urlParams.get('ip') || '';
+            if(this.targetIp) {
+                console.log('Clicking');
+
+                setTimeout(() => {
+                    document.getElementById('startbutton').click();
+                }, 200); 
+            }
+            await this.handleIntervals();
         }
     }"
     x-init="handleIntervals()">
@@ -84,7 +108,7 @@
                     showNotification(`Failed to start ${currentTab}.`, 'error');
                 }
                 
-                " style="margin-left: 0px;" class="primary">Start</button>
+                " style="margin-left: 0px;" id="startbutton" class="primary">Start</button>
             </div>
         </div>
     
@@ -107,25 +131,27 @@
                 </div>
             </template>
 
-            <button @click="
-            const id = showNotification('Clearing...', 'loading');
+            <div>
+                <button @click="
+                const id = showNotification('Clearing...', 'loading');
 
-            const res = await fetch('/api/debug', {
-                method: 'DELETE'
-            });
+                const res = await fetch('/api/debug', {
+                    method: 'DELETE'
+                });
 
-            removeNotification(id);
+                removeNotification(id);
 
-            if(res.ok) {
-                showNotification('Cleared successfully!');
-                pingOut = '';
-                traceOut = '';
-            } else {
-                showNotification('Failed to clear outputs', 'error');
-            }
+                if(res.ok) {
+                    showNotification('Cleared successfully!');
+                    pingOut = '';
+                    traceOut = '';
+                } else {
+                    showNotification('Failed to clear outputs', 'error');
+                }
 
-            " style="margin-left: 0px;" class="destructive">Clear both</button>
-
+                " style="margin-left: 0px;" class="destructive">Clear both</button>
+                <button @click="this.refreshCurrent()">Manually refresh</button>
+            </div>
 
             </code>
             <p ></p>
