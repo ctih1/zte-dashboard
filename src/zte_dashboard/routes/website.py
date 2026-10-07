@@ -30,6 +30,7 @@ class Website:
         self.router.add_api_route("/", make_api_route("index.html"))
         self.router.add_api_route("/sms", make_api_route("sms.html"))
         self.router.add_api_route("/devices", make_api_route("devices.html"))
+        self.router.add_api_route("/ntools", make_api_route("networktools.html"))
         self.router.add_api_route(
             "/portforwarding", make_api_route("portforwarding.html")
         )

@@ -140,6 +140,32 @@ class API:
             methods=["GET"],
         )
 
+        self.router.add_api_route("/api/debug/ping", self.start_ping, methods=["POST"])
+        self.router.add_api_route("/api/debug/ping", self.get_ping, methods=["GET"])
+        self.router.add_api_route(
+            "/api/debug/trace", self.start_traceroute, methods=["POST"]
+        )
+        self.router.add_api_route(
+            "/api/debug/trace", self.get_traceroute, methods=["GET"]
+        )
+        self.router.add_api_route("/api/debug", self.clear_all, methods=["DELETE"])
+
+    async def start_ping(self, ip: str, ping_count: int = 4, size: int = 64) -> None:
+        await self.zte.network_tools.start_ping(ip, ping_count, size, ping_quiet=1)
+
+    async def start_traceroute(self, ip: str) -> None:
+        await self.zte.network_tools.start_traceroute(ip)
+
+    async def get_ping(self) -> str:
+        return await self.zte.network_tools.get_ping_output() or ""
+
+    async def get_traceroute(self) -> str:
+        return await self.zte.network_tools.get_traceroute_output() or ""
+
+    async def clear_all(self) -> None:
+        await self.zte.network_tools.clear_ping_output()
+        await self.zte.network_tools.clear_traceroute_output()
+
     async def get_bindings(self) -> list[MacBinding]:
         return await self.zte.bindings.get_mac_bindings()
 
