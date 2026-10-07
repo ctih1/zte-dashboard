@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <link href="/frii.css" rel="stylesheet" />
+    <script src="/utils.js"></script>
+    <title>Network Tools</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+
+<body>
+    <div x-data="{
+        traceOut: '',
+        pingOut: '',
+        currentTab: 'ping',
+        newline: String.fromCharCode(96),
+        targetIp: '',
+        pingSize: 64,
+        pingCount: 4,
+        traceInterval: null,
+        pingInterval: null,
+        status: {
+            pingStarted: false,
+            traceStarted: false
+        },
+        async handleIntervals() {
+            if(this.pingInterval) {
+                clearInterval(this.pingInterval);
+            }
+            if(this.traceInterval) {
+                clearInterval(this.traceInterval);
+            }
+            
+            if(this.currentTab === 'ping') {
+                this.pingInterval = setInterval(async () => {
+                    this.pingOut = await (await fetch('/api/debug/ping')).text()
+                }, 2500);
+            } else {
+                this.pingInterval = setInterval(async () => {
+                    this.traceOut = await (await fetch('/api/debug/trace')).text()
+                }, 2500);
+            }
+        }
+    }"
+    x-init="handleIntervals()">
+        <div class="card">
+            <h1>Network tools</h1>
+
+            
+            <select x-on:change="handleIntervals()" x-model="currentTab">
+                <button><selectedcontent></selectedcontent></button>
+                <option value="ping">Ping</option>
+                <option value="trace">Traceroute</option>
+            </select>
+
+            <div style="display: flex; flex-direction: column; max-width: 250px; row-gap: 12px; margin-top: 24px">
+                <div>
+                    <label for="address">Target address</label>
+                    <input id="address" x-model="targetIp">
+                </div>
+
+                <div x-show="currentTab === 'ping'">
+                    <label for="pingcnt">Ping count</label>
+                    <input type="number" id="pingcnt" x-model="pingCount">
+                </div>
+                <div x-show="currentTab === 'ping'">
+                    <label for="pingsize">Ping packet size</label>
+                    <input type="number" id="pingsize" x-model="pingSize">
+                </div>
+
+                <button @click="
+                const id = showNotification(`Starting ${currentTab}...`, 'loading');
+                const res = await fetch(`/api/debug/${currentTab}?` + new URLSearchParams({ip: targetIp, ping_count: pingCount, size: pingSize}), {
+                    method: 'POST'
+                });
+
+                removeNotification(id);
+
+                if(res.ok) {
+                    showNotification(`Started ${currentTab}! It might take a bit for results to appear.`);
+                    return;
+                } else {
+                    showNotification(`Failed to start ${currentTab}.`, 'error');
+                }
+                
+                " style="margin-left: 0px;" class="primary">Start</button>
+            </div>
+        </div>
+    
+
+        <div class="card">
+            <h1>Results</h1>
+            
+            <template x-for="text, i in [pingOut, traceOut]">
+                <div>
+                    <label x-text="i === 0 ? 'Ping:' : 'Traceroute:' "></label>
+                    
+                    <div style="background-color: #eee; padding: 12px; border-radius: 0.5em;">
+                        <code style="display: flex; flex-direction: column">
+                            <template x-for="line in text.slice(1, text.length-1).split('\\n')">
+                                <span style="font-family: monospace;" x-text="line"></span>
+                            </template>
+                        </code>
+                    </div>
+
+                </div>
+            </template>
+
+            <button @click="
+            const id = showNotification('Clearing...', 'loading');
+
+            const res = await fetch('/api/debug', {
+                method: 'DELETE'
+            });
+
+            removeNotification(id);
+
+            if(res.ok) {
+                showNotification('Cleared successfully!');
+                pingOut = '';
+                traceOut = '';
+            } else {
+                showNotification('Failed to clear outputs', 'error');
+            }
+
+            " style="margin-left: 0px;" class="destructive">Clear both</button>
+
+
+            </code>
+            <p ></p>
+        </div>
+    </div>
+</body>
+
+<style>
+    select button::after {
+        content: "▲"
+    }
+</style>

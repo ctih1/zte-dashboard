@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="/utils.js"></script>
     <link href="/frii.css" rel="stylesheet" />
     <title>Home</title>
     <meta charset="utf-8">
@@ -52,7 +53,8 @@
                                 :class="message.mode === 'SENT_BY_SELF' ? 'msg-self' : 'msg-other'"
                             >
                                 <span class="bubble" style="border-radius: 0.5em; padding: 0.5em; max-width: 400px;" x-text="message.content"></span>
-                                <span style="color: black; opacity: 0.7; font-weight: 300; font-size: 0.8em;" x-text="new Date(message.date).toLocaleString();"></span>
+                                <span x-text="`${message.date.hour}:${message.date.minute.toString().padStart(2, '0')} ${message.date.day.toString().padStart(2, '0')}/${message.date.month.toString().padStart(2, '0')}/${message.date.year}`" style="color: black; opacity: 0.7; font-weight: 300; font-size: 0.8em;">
+                                </span>
                             </div>
                         </template>
                     </div>
@@ -61,7 +63,9 @@
                         <div style="margin: 12px; display: flex; align-items: center;">
                             <input x-model="currentMessage" style="width: 100%; height: 40px">
                             <button @click="
-                            const res = await fetch('/api/sms', {
+                            const loadingId = showNotification('Sending message...', 'loading');
+
+                            const res = await fetch('/api/sms?test=y', {
                                 method: 'POST',
                                 body: JSON.stringify({
                                     phone_number: !active.phoneNumber ? newChatPhoneNo : active.phoneNumber,
@@ -73,7 +77,8 @@
                             });
 
                             if(res.ok) {
-                                let messageObj = {content: currentMessage, date: new Date(), id: undefined, mode: 'SENT_BY_SELF', sms_class: 4, tag: 2};
+                                const n = new Date();
+                                let messageObj = {content: currentMessage, date: {hour: n.getHours(), minute: n.getMinutes(), month: n.getMonth(), day: n.getDay(), year: n.getFullYear()}, id: undefined, mode: 'SENT_BY_SELF', sms_class: 4, tag: 2};
                                 if(!active.phoneNumber && newChatPhoneNo) {
                                     messages[newChatPhoneNo] = [messageObj];
                                     active.chats = [messageObj];
@@ -84,7 +89,13 @@
 
                                 newChatPhoneNo = '';
                                 currentMessage = '';
+                                showNotification('Succesfully sent message!');
+                            } else {
+                                showNotification('Failed to sen message!', 'error');
                             }
+
+                            removeNotification(loadingId);
+
                             " :disabled="(!active.phoneNumber && !newChatPhoneNo) || !currentMessage" style="height: 40px;" class="primary">Send</button>
                         </div>
                     </div>

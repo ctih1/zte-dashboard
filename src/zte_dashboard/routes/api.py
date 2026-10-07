@@ -8,6 +8,7 @@ from zte_wrapper.types import (
     PortmappingRule,
     SMSMessage,
     PhoneNumber,
+    MacBinding,
 )
 import json
 import dataclasses
@@ -118,6 +119,58 @@ class API:
             methods=["DELETE"],
         )
 
+        self.router.add_api_route(
+            "/api/devices",
+            self.query_devices,
+            methods=["GET"],
+        )
+
+        self.router.add_api_route(
+            "/api/devices/lan",
+            self.query_lan_devices,
+            methods=["GET"],
+        )
+
+        self.router.add_api_route(
+            "/api/devices/offline",
+            self.query_offline_devices,
+            methods=["GET"],
+        )
+
+        self.router.add_api_route(
+            "/api/devices/wlan",
+            self.query_wlan_devices,
+            methods=["GET"],
+        )
+
+        self.router.add_api_route(
+            "/api/devices/bindings",
+            self.bind_ip,
+            methods=["POST"],
+        )
+
+        self.router.add_api_route(
+            "/api/devices/bindings",
+            self.remove_binding,
+            methods=["DELETE"],
+        )
+
+        self.router.add_api_route(
+            "/api/devices/bindings",
+            self.get_bindings,
+            methods=["GET"],
+        )
+
+        self.router.add_api_route("/api/debug/ping", self.start_ping, methods=["POST"])
+        self.router.add_api_route("/api/debug/ping", self.get_ping, methods=["GET"])
+        self.router.add_api_route(
+            "/api/debug/trace", self.start_traceroute, methods=["POST"]
+        )
+        self.router.add_api_route(
+            "/api/debug/trace", self.get_traceroute, methods=["GET"]
+        )
+        self.router.add_api_route("/api/debug", self.clear_all, methods=["DELETE"])
+
     @check_cooldown
     async def start_cooldown(self, request: Request) -> None:
         self.on_cooldown = True
@@ -128,6 +181,51 @@ class API:
     async def get_cooldown(self) -> JSONResponse:
         return JSONResponse({"cooldown": self.on_cooldown}, 200)
 
+    async def start_ping(self, ip: str, ping_count: int = 4, size: int = 64) -> None:
+        await self.zte.network_tools.start_ping(ip, ping_count, size, ping_quiet=1)
+
+    async def start_traceroute(self, ip: str) -> None:
+        await self.zte.network_tools.start_traceroute(ip)
+
+    async def get_ping(self) -> str:
+        return await self.zte.network_tools.get_ping_output() or ""
+
+    async def get_traceroute(self) -> str:
+        return await self.zte.network_tools.get_traceroute_output() or ""
+
+    async def clear_all(self) -> None:
+        await self.zte.network_tools.clear_ping_output()
+        await self.zte.network_tools.clear_traceroute_output()
+
+    async def get_bindings(self) -> list[MacBinding]:
+        return await self.zte.bindings.get_mac_bindings()
+
+    async def remove_binding(self, mac_addr: str):
+        result = await self.zte.bindings.delete_mac_binding(mac_addr)
+        if not result:
+            raise HTTPException(status_code=500, detail="Failed to delete binding")
+
+    async def bind_ip(self, ip_addr: str, mac_addr: str):
+        result = await self.zte.bindings.create_mac_binding(mac_addr, ip_addr)
+        if not result:
+            raise HTTPException(status_code=500, detail="Failed to create binding")
+
+    async def query_devices(self):
+        wlan_devices = await self.zte.devices.get_wlan_devices()
+        offline_devices = await self.zte.devices.get_offline_devices()
+        lan_devices = await self.zte.devices.get_lan_devices()
+
+        return {"offline": offline_devices, "wlan": wlan_devices, "lan": lan_devices}
+
+    async def query_lan_devices(self):
+        return await self.zte.devices.get_lan_devices()
+
+    async def query_wlan_devices(self):
+        return await self.zte.devices.get_wlan_devices()
+
+    async def query_offline_devices(self):
+        return await self.zte.devices.get_offline_devices()
+
     async def query_sms(self) -> dict[PhoneNumber, list[SMSMessage]]:
         messages = await self.zte.sms.get_sms()
         if not messages:
@@ -135,7 +233,12 @@ class API:
 
         return messages
 
-    async def send_sms(self, message: Message, hour_offset: int = 0) -> None:
+    async def send_sms(
+        self, request: Request, message: Message, hour_offset: int = 0
+    ) -> None:
+        if request.query_params.get("test") == "y":
+            return
+
         success = await self.zte.sms.send_sms(
             message.phone_number, message.message, hour_offset
         )

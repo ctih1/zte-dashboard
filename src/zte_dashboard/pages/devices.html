@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <link href="/frii.css" rel="stylesheet" />
+    <script src="/utils.js"></script>
+    <title>Home</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+
+<body>
+    <div x-data="{
+        offline: [],
+        lan: [],
+        wlan: [],
+        bindings: {},
+        loaded: [false, false, false],
+        creating: {
+            mac: '',
+            ip: ''
+        },
+        async getDevices() {
+            const bindings = await (await fetch('/api/devices/bindings')).json();
+            for(let binding of bindings) {
+                this.bindings[binding.mac] = binding.ip;
+            }
+
+            this.lan = await (await fetch('/api/devices/lan')).json();
+            this.loaded[0] = true;
+            this.wlan = await (await fetch('/api/devices/wlan')).json();
+            this.loaded[1] = true;
+            this.offline = await (await fetch('/api/devices/offline')).json();
+            this.loaded[2] = true;
+        }
+    }" x-init="getDevices()" class="card">
+        <h1>Devices</h1>
+        
+        <template x-for="devices, i in [lan, wlan, offline]">¨
+            <div>
+                <h2 style="margin-bottom: 12px;" x-text="i === 0 ? 'LAN devices' : (i === 1 ? 'WLAN devices' : 'Offline devices')"></h2>
+                <div x-show="!loaded[i]" class="spinner"></div>
+                <template x-for="device in devices"> 
+                <div style="background-color: #eee; padding: 12px; border-radius: 0.5em; margin-bottom: 18px;">
+                    <div style="display: flex; justify-content: space-between;">
+                        <div>
+                            <h2 style="margin-top: 0px; margin-bottom: 0px;" x-text="device.hostname"></h2>
+                            <p style="font-style: italic; margin-top: 0px;" x-text="device.ip_address"></p>
+
+                            <div class="device-info">
+                                <p>Negotiated speed: <span x-text="device.agreed_rate_mbps"></span> mbps</p>
+                                <p>MAC address: <code  x-text="device.mac_address" style="font-family: monospace !important;"></code></p>
+                            </div>
+                        </div>
+                        <div x-data="{
+                            bound: bindings[device.mac_address] === device.ip_address || device.mac_bound
+                        }">
+                            <button x-show="!bound" @click="creating.mac = device.mac_address; creating.ip = device.ip_address" command="show-modal" x-bind:commandfor="`bind-modal-${device.mac_address}`" class="primary">Bind IP</button>
+                            <button @click="
+                                const res = await fetch('/api/devices/bindings?' + new URLSearchParams({mac_addr: device.mac_address}), {
+                                    method: 'DELETE'
+                                });
+                                " x-show="bound" class="destructive">Remove IP bind</button>
+                        </div>
+
+                        <dialog x-bind:id="`bind-modal-${device.mac_address}`">
+                            <h1>Create MAC-IP binding</h1>
+                            
+
+                            <div style="margin-bottom: 8px;">
+                                <label>MAC Address</label>
+                                <input x-model="creating.mac">
+                            </div>
+
+                            <div>
+                                <label>IP Address</label>
+                                <input autofocus x-model="creating.ip">
+                            </div>
+
+                            <div style="margin-top: 12px" class="options">
+                                <button @click="
+                                const id = showNotification('Creating binding...', 'loading');
+                                const res = await fetch('/api/devices/bindings?' + new URLSearchParams({ip_addr: creating.ip, mac_addr: creating.mac}), {
+                                    method: 'POST'
+                                });
+                                if(res.ok) {
+                                    bindings[creating.mac] = creating.ip;
+                                    lan = [...lan];
+                                    showNotification('Created bind successfully!');
+                                } else {
+                                    showNotification('Failed to create bind.', 'error');
+                                }
+                                removeNotification(id);
+                                " class="secondary" x-bind:commandfor="`bind-modal-${device.mac_address}`">Create binding</button>
+                                <button class="primary" x-bind:commandfor="`bind-modal-${device.mac_address}`" command="close">Cancel</button>
+                            </div>
+                        </dialog>
+                    </div>
+                </div>
+                </template>
+            </div>
+        </template>
+    </div>
+</body>
+
+<style>
+    .device-info p {
+        margin-top: 2px;
+        margin-bottom: 2px;
+    }
+</style>
