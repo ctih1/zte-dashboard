@@ -4,6 +4,21 @@ dismissNotifButton.style.width = "100%";
 dismissNotifButton.onclick = _ => clearNotificationBox();
 let onCooldown = false;
 
+
+// from https://stackoverflow.com/questions/59777670/how-can-i-hash-a-string-with-sha256
+// because the standard sha256 API isn't available in non-https contexts that arent localhost.
+// man this takes me back to the good ol days of frii.saite where I was doing this exact same thing lol. 
+// Also note: I might implement better authentication in the future. This is just to add a *bit* of extra security until I do so
+const getSHA256Hash = async (input) => {
+    const textAsBuffer = new TextEncoder().encode(input);
+    const hashBuffer = await window.crypto.subtle.digest("SHA-256", textAsBuffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const hash = hashArray
+        .map((item) => item.toString(16).padStart(2, "0"))
+        .join("");
+    return hash;
+};
+
 async function toggleCooldown(lockEnabled) {
     const id = showNotification("Locking API...", "loading");
     const res = await fetch("/api/cooldown", {
@@ -35,7 +50,6 @@ window.onload = async ()  => {
     document.body.prepend(navbar);
 
     const data = await (await req).json();
-    console.log(data);
     const lockButton = document.createElement("button");
     if(data["cooldown"]) {
         lockButton.innerText = "Disable cooldown";
@@ -43,6 +57,9 @@ window.onload = async ()  => {
     } else {
         lockButton.innerText = "Enable cooldown";
         lockButton.classList.add("primary");
+    }
+    if(!data.authenticated && window.location.pathname !== "/login") {
+        window.location.href = "/login";
     }
 
     lockButton.onclick = async () => {

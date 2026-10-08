@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <link href="/frii.css" rel="stylesheet" />
+    <script src="/utils.js"></script>
+
+    <title>Login</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+
+<body>
+    <div class="card" x-data="{password: '', visible: false}">
+        <h1>Login</h1>
+        <p>Please log into your account.</p>
+
+        <form action="javascript:void(0);">
+            <div>
+                <label for="pass">Password:</label>
+                <div>
+                <input x-bind:type="visible ? 'text' : 'password'" id="pass" x-model="password" type="password">
+                <button @click="visible = !visible">show</button>
+                </div>
+
+            </div>
+            <button @click="
+            setTimeout(async () => {
+                const token = await getSHA256Hash(password);
+                document.cookie = `Token=${token};max-age=14400;samesite=strict;`
+                window.location.href='/';
+            }, 1);
+            " class="primary">Log in</button>
+        </form>
+    </div>
+</body>

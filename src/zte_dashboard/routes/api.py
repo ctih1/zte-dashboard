@@ -14,7 +14,7 @@ import json
 import dataclasses
 from typing import Any
 from pydantic import BaseModel
-from utils import check_cooldown
+from utils import check_cooldown, is_authenticated, check_auth
 
 
 class JSONEncoderWithPortRange(json.JSONEncoder):
@@ -171,54 +171,70 @@ class API:
         )
         self.router.add_api_route("/api/debug", self.clear_all, methods=["DELETE"])
 
+    @check_auth
     async def start_cooldown(self, request: Request) -> None:
         self.on_cooldown = True
 
-    async def stop_cooldown(self) -> None:
+    @check_auth
+    async def stop_cooldown(self, request: Request) -> None:
         self.on_cooldown = False
 
-    async def get_cooldown(self) -> JSONResponse:
-        return JSONResponse({"cooldown": self.on_cooldown}, 200)
+    async def get_cooldown(self, request: Request) -> JSONResponse:
+        return JSONResponse(
+            {"cooldown": self.on_cooldown, "authenticated": is_authenticated(request)},
+            200,
+        )
 
     @check_cooldown
-    async def start_ping(self, ip: str, ping_count: int = 4, size: int = 64) -> None:
+    @check_auth
+    async def start_ping(
+        self, request: Request, ip: str, ping_count: int = 4, size: int = 64
+    ) -> None:
         await self.zte.network_tools.start_ping(ip, ping_count, size, ping_quiet=1)
 
     @check_cooldown
-    async def start_traceroute(self, ip: str) -> None:
+    @check_auth
+    async def start_traceroute(self, request: Request, ip: str) -> None:
         await self.zte.network_tools.start_traceroute(ip)
 
     @check_cooldown
-    async def get_ping(self) -> str:
+    @check_auth
+    async def get_ping(self, request: Request) -> str:
         return await self.zte.network_tools.get_ping_output() or ""
 
     @check_cooldown
-    async def get_traceroute(self) -> str:
+    @check_auth
+    async def get_traceroute(self, request: Request) -> str:
         return await self.zte.network_tools.get_traceroute_output() or ""
 
     @check_cooldown
-    async def clear_all(self) -> None:
+    @check_auth
+    async def clear_all(self, request: Request) -> None:
         await self.zte.network_tools.clear_ping_output()
         await self.zte.network_tools.clear_traceroute_output()
 
     @check_cooldown
-    async def get_bindings(self) -> list[MacBinding]:
+    @check_auth
+    async def get_bindings(self, request: Request) -> list[MacBinding]:
         return await self.zte.bindings.get_mac_bindings()
 
     @check_cooldown
-    async def remove_binding(self, mac_addr: str):
+    @check_auth
+    async def remove_binding(self, request: Request, mac_addr: str):
         result = await self.zte.bindings.delete_mac_binding(mac_addr)
         if not result:
             raise HTTPException(status_code=500, detail="Failed to delete binding")
 
     @check_cooldown
-    async def bind_ip(self, ip_addr: str, mac_addr: str):
+    @check_auth
+    async def bind_ip(self, request: Request, ip_addr: str, mac_addr: str):
         result = await self.zte.bindings.create_mac_binding(mac_addr, ip_addr)
         if not result:
             raise HTTPException(status_code=500, detail="Failed to create binding")
 
     @check_cooldown
-    async def query_devices(self):
+    @check_auth
+    async def query_devices(self, request: Request):
         wlan_devices = await self.zte.devices.get_wlan_devices()
         offline_devices = await self.zte.devices.get_offline_devices()
         lan_devices = await self.zte.devices.get_lan_devices()
@@ -226,19 +242,23 @@ class API:
         return {"offline": offline_devices, "wlan": wlan_devices, "lan": lan_devices}
 
     @check_cooldown
-    async def query_lan_devices(self):
+    @check_auth
+    async def query_lan_devices(self, request: Request):
         return await self.zte.devices.get_lan_devices()
 
     @check_cooldown
-    async def query_wlan_devices(self):
+    @check_auth
+    async def query_wlan_devices(self, request: Request):
         return await self.zte.devices.get_wlan_devices()
 
     @check_cooldown
-    async def query_offline_devices(self):
+    @check_auth
+    async def query_offline_devices(self, request: Request):
         return await self.zte.devices.get_offline_devices()
 
     @check_cooldown
-    async def query_sms(self) -> dict[PhoneNumber, list[SMSMessage]]:
+    @check_auth
+    async def query_sms(self, request: Request) -> dict[PhoneNumber, list[SMSMessage]]:
         messages = await self.zte.sms.get_sms()
         if not messages:
             raise HTTPException(status_code=500, detail="Could not retrieve messages")
@@ -246,6 +266,7 @@ class API:
         return messages
 
     @check_cooldown
+    @check_auth
     async def send_sms(
         self, request: Request, message: Message, hour_offset: int = 0
     ) -> None:
@@ -259,7 +280,7 @@ class API:
             raise HTTPException(status_code=500, detail="Could not send messages")
 
     @check_cooldown
-    async def signal_strength(self) -> Response:
+    async def signal_strength(self, request: Request) -> Response:
         data = await self.zte.signal.get_signal_strength()
         others = await self.zte.query_items(
             [
@@ -284,7 +305,8 @@ class API:
         )
 
     @check_cooldown
-    async def query_portmapping_rules(self) -> Response:
+    @check_auth
+    async def query_portmapping_rules(self, request: Request) -> Response:
         data = await self.zte.portmapping.get_portmap_rules()
 
         return Response(
@@ -294,6 +316,7 @@ class API:
         )
 
     @check_cooldown
+    @check_auth
     async def add_portmapping_rule(
         self, request: Request, rule: PortmapRule
     ) -> Response:
@@ -315,6 +338,7 @@ class API:
         return Response("ok", 200)
 
     @check_cooldown
+    @check_auth
     async def remove_portmapping_rule(
         self, request: Request, indices: list[int]
     ) -> Response:
@@ -328,7 +352,8 @@ class API:
         return Response("ok", 200)
 
     @check_cooldown
-    async def query_portforwarding_rules(self) -> Response:
+    @check_auth
+    async def query_portforwarding_rules(self, request: Request) -> Response:
         data = await self.zte.portforwarding.get_port_forwarding_rules()
 
         return Response(
@@ -338,6 +363,7 @@ class API:
         )
 
     @check_cooldown
+    @check_auth
     async def add_portforwarding_rule(
         self, request: Request, rule: PortforwardRule
     ) -> Response:
@@ -358,6 +384,7 @@ class API:
         return Response("ok", 200)
 
     @check_cooldown
+    @check_auth
     async def remove_portforwarding_rule(
         self, request: Request, indices: list[int]
     ) -> Response:

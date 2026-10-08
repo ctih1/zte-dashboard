@@ -16,10 +16,10 @@ def craft_response(page: str) -> Response:
 
 
 def make_api_route(page: str) -> Callable[..., Response]:
-    def r():
+    def static_page():
         return craft_response(page)
 
-    return r
+    return static_page
 
 
 class Website:
@@ -31,6 +31,7 @@ class Website:
         self.router.add_api_route("/sms", make_api_route("sms.html"))
         self.router.add_api_route("/devices", make_api_route("devices.html"))
         self.router.add_api_route("/ntools", make_api_route("networktools.html"))
+        self.router.add_api_route("/login", make_api_route("login.html"))
         self.router.add_api_route(
             "/portforwarding", make_api_route("portforwarding.html")
         )
