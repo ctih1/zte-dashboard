@@ -296,6 +296,10 @@ class API:
 
         str_data = ""
         for k, v in (dataclasses.asdict(data) | others).items():
+            try:
+                float(v)
+            except Exception as _:
+                continue
             str_data += craft_prometheus_string(k, v)
 
         return Response(
