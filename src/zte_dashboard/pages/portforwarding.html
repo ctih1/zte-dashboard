@@ -227,6 +227,8 @@
                     }
 
                     result.rules = [...result.rules];
+                } else {
+                    showNotification('Failed to create rule', 'error');
                 }
                 " :disabled="limitReached || creation.malformedComment" class="primary">Create</button>
 

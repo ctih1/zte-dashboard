@@ -20,11 +20,10 @@
                 <label for="pass">Password:</label>
                 <div>
                 <input x-bind:type="visible ? 'text' : 'password'" id="pass" x-model="password" type="password">
-                <button @click="visible = !visible">show</button>
+                <button type="button" tabindex="2" @click="visible = !visible"><span x-text="visible ? 'hide' : 'reveal'"></span></button>
                 </div>
-
             </div>
-            <button @click="
+            <button style="margin-left: 0px; width: 100px" type="submit" @click="
             setTimeout(async () => {
                 const token = sha256(password);
                 document.cookie = `Token=${token};max-age=14400;samesite=strict;`
